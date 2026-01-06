@@ -52,8 +52,8 @@
 
 <div class="controls" id="controls">
   <div>
-    Opacity:
-    <input type="range" id="opacity" min="0" max="100" value="100">
+    Invert Strength:
+    <input type="range" id="invert" min="0" max="100" value="100">
   </div>
   <button id="download">Download</button>
 </div>
@@ -64,10 +64,10 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const loading = document.getElementById("loading");
 const controls = document.getElementById("controls");
-const opacitySlider = document.getElementById("opacity");
+const invertSlider = document.getElementById("invert");
 const downloadBtn = document.getElementById("download");
 
-let baseImageData = null;
+let originalData = null;
 
 upload.addEventListener("change", () => {
   const file = upload.files[0];
@@ -83,19 +83,9 @@ upload.addEventListener("change", () => {
     canvas.height = img.height;
 
     ctx.drawImage(img, 0, 0);
+    originalData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-    // Get pixels and invert colors
-    baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = baseImageData.data;
-
-    for (let i = 0; i < data.length; i += 4) {
-      data[i]     = 255 - data[i];     // R
-      data[i + 1] = 255 - data[i + 1]; // G
-      data[i + 2] = 255 - data[i + 2]; // B
-      data[i + 3] = 255;               // Full alpha base
-    }
-
-    drawWithOpacity();
+    applyInvert();
 
     loading.style.display = "none";
     canvas.style.display = "block";
@@ -105,26 +95,29 @@ upload.addEventListener("change", () => {
   img.src = URL.createObjectURL(file);
 });
 
-function drawWithOpacity() {
-  if (!baseImageData) return;
+function applyInvert() {
+  if (!originalData) return;
 
-  // Clone image data so we don't destroy original
+  const strength = invertSlider.value / 100;
+
   const imgData = new ImageData(
-    new Uint8ClampedArray(baseImageData.data),
-    baseImageData.width,
-    baseImageData.height
+    new Uint8ClampedArray(originalData.data),
+    originalData.width,
+    originalData.height
   );
 
-  const alpha = opacitySlider.value / 100 * 255;
+  const d = imgData.data;
 
-  for (let i = 3; i < imgData.data.length; i += 4) {
-    imgData.data[i] = alpha;
+  for (let i = 0; i < d.length; i += 4) {
+    d[i]     = d[i]     + (255 - d[i]     - d[i]) * strength; // R
+    d[i + 1] = d[i + 1] + (255 - d[i + 1] - d[i + 1]) * strength; // G
+    d[i + 2] = d[i + 2] + (255 - d[i + 2] - d[i + 2]) * strength; // B
   }
 
   ctx.putImageData(imgData, 0, 0);
 }
 
-opacitySlider.addEventListener("input", drawWithOpacity);
+invertSlider.addEventListener("input", applyInvert);
 
 downloadBtn.addEventListener("click", () => {
   const link = document.createElement("a");
@@ -134,7 +127,7 @@ downloadBtn.addEventListener("click", () => {
 });
 </script>
 
-<h3>v1.0.2</h3>
+<h3>v1.0.3</h3>
 
 </body>
 </html>
