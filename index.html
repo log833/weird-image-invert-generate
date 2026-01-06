@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Weird Image Invert Generate</title>
+<link rel="icon" href="icon.png" type="image/png">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -23,7 +24,6 @@
     border: 1px solid #555;
     margin-top: 10px;
     display: none;
-    opacity: 1;
   }
 
   #loading {
@@ -67,6 +67,8 @@ const controls = document.getElementById("controls");
 const opacitySlider = document.getElementById("opacity");
 const downloadBtn = document.getElementById("download");
 
+let baseImageData = null;
+
 upload.addEventListener("change", () => {
   const file = upload.files[0];
   if (!file) return;
@@ -82,20 +84,18 @@ upload.addEventListener("change", () => {
 
     ctx.drawImage(img, 0, 0);
 
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
+    // Get pixels and invert colors
+    baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = baseImageData.data;
 
-    // Invert pixels ONCE
     for (let i = 0; i < data.length; i += 4) {
-      data[i]     = 255 - data[i];
-      data[i + 1] = 255 - data[i + 1];
-      data[i + 2] = 255 - data[i + 2];
+      data[i]     = 255 - data[i];     // R
+      data[i + 1] = 255 - data[i + 1]; // G
+      data[i + 2] = 255 - data[i + 2]; // B
+      data[i + 3] = 255;               // Full alpha base
     }
 
-    ctx.putImageData(imageData, 0, 0);
-
-    canvas.style.opacity = "1";
-    opacitySlider.value = 100;
+    drawWithOpacity();
 
     loading.style.display = "none";
     canvas.style.display = "block";
@@ -105,10 +105,26 @@ upload.addEventListener("change", () => {
   img.src = URL.createObjectURL(file);
 });
 
-// CSS opacity only (no pixel changes)
-opacitySlider.addEventListener("input", () => {
-  canvas.style.opacity = opacitySlider.value / 100;
-});
+function drawWithOpacity() {
+  if (!baseImageData) return;
+
+  // Clone image data so we don't destroy original
+  const imgData = new ImageData(
+    new Uint8ClampedArray(baseImageData.data),
+    baseImageData.width,
+    baseImageData.height
+  );
+
+  const alpha = opacitySlider.value / 100 * 255;
+
+  for (let i = 3; i < imgData.data.length; i += 4) {
+    imgData.data[i] = alpha;
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+}
+
+opacitySlider.addEventListener("input", drawWithOpacity);
 
 downloadBtn.addEventListener("click", () => {
   const link = document.createElement("a");
@@ -118,7 +134,7 @@ downloadBtn.addEventListener("click", () => {
 });
 </script>
 
-<h3>v1.0.1</h3>
-  
+<h3>v1.0.2</h3>
+
 </body>
 </html>
